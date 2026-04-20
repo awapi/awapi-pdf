@@ -78,6 +78,32 @@ update:
 update-rust:
     cd src-tauri && cargo update
 
+# ── Release ──────────────────────────────────────────
+
+# Bump version, commit, tag, and push to trigger the release CI
+# Usage: just release 0.3.0
+release version:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    if [[ -z "{{version}}" ]]; then
+        echo "Usage: just release <version>  (e.g. just release 0.3.0)"
+        exit 1
+    fi
+    echo "→ Bumping version to {{version}}"
+    # Update package.json
+    npm version "{{version}}" --no-git-tag-version
+    # Update tauri.conf.json
+    sed -i '' 's/"version": "[^"]*"/"version": "{{version}}"/' src-tauri/tauri.conf.json
+    echo "→ Committing"
+    git add package.json src-tauri/tauri.conf.json
+    git commit -m "chore: bump version to {{version}}"
+    echo "→ Tagging v{{version}}"
+    git tag "v{{version}}"
+    echo "→ Pushing"
+    git push origin main
+    git push origin "v{{version}}"
+    echo "✓ Released v{{version}} — GitHub Actions will build the installers."
+
 # ── Cleanup ──────────────────────────────────────────
 
 # Remove build artifacts

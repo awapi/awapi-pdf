@@ -70,6 +70,6 @@ jobs:
             | Windows  | `.msi` or `.exe` |
             | macOS    | `.dmg` |
             | Linux    | `.AppImage` or `.deb` |
-          releaseDraft: true
+          releaseDraft: false
           prerelease: false
           args: ${{ matrix.args }}
