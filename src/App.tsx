@@ -150,6 +150,17 @@ function App() {
     };
   }, [openFilePath]);
 
+  // Listen for OS-level drag-and-drop (Tauri v2 intercepts before browser events)
+  useEffect(() => {
+    const unlisten = listen<{ paths: string[] }>("tauri://drag-drop", (event) => {
+      const path = event.payload.paths?.[0];
+      if (path) openFilePath(path);
+    });
+    return () => {
+      unlisten.then((fn) => fn());
+    };
+  }, [openFilePath]);
+
   // Check for a pending file on mount (handles launch via "Open With")
   useEffect(() => {
     invoke<string | null>("get_pending_file").then((filePath) => {

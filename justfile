@@ -1,5 +1,8 @@
 # AwapiPDF – Tauri + React + TypeScript
 
+# Source Cargo environment so `cargo` is always on PATH
+export PATH := env_var_or_default("HOME", "/root") + "/.cargo/bin:" + env_var_or_default("PATH", "")
+
 # List available recipes
 default:
     @just --list
