@@ -1,4 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from "react";
+import { listen } from "@tauri-apps/api/event";
+import { invoke } from "@tauri-apps/api/core";
 import { Toolbar } from "./components/Toolbar";
 import { Sidebar } from "./components/Sidebar";
 import { PdfViewer } from "./components/PdfViewer";
@@ -11,6 +13,7 @@ import { usePdfDocument } from "./hooks/usePdfDocument";
 import { useSearch } from "./hooks/useSearch";
 import { useAnnotations } from "./hooks/useAnnotations";
 import { usePdfEditor } from "./hooks/usePdfEditor";
+import { usePrint } from "./hooks/usePrint";
 import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
 import "./App.css";
 
@@ -39,6 +42,7 @@ function App() {
     error,
     pdfBytes,
     openFile,
+    openFilePath,
     loadFromBytes,
     goToPage,
     nextPage,
@@ -75,6 +79,8 @@ function App() {
   } = useAnnotations();
 
   const { mergePdfs, splitPdf, createBlankPdf, movePage } = usePdfEditor();
+
+  const { print, printing } = usePrint(pdfDocument, pdfBytes);
 
   const handleSplit = useCallback(
     async (startPage: number, endPage: number) => {
@@ -134,6 +140,25 @@ function App() {
     return () => el.removeEventListener("wheel", handleWheel);
   }, [setScale]);
 
+  // Listen for file-open events from macOS file associations
+  useEffect(() => {
+    const unlisten = listen<string>("open-file", (event) => {
+      openFilePath(event.payload);
+    });
+    return () => {
+      unlisten.then((fn) => fn());
+    };
+  }, [openFilePath]);
+
+  // Check for a pending file on mount (handles launch via "Open With")
+  useEffect(() => {
+    invoke<string | null>("get_pending_file").then((filePath) => {
+      if (filePath) {
+        openFilePath(filePath);
+      }
+    });
+  }, [openFilePath]);
+
   const toggleSidebar = useCallback(() => {
     setSidebarOpen((prev) => !prev);
   }, []);
@@ -153,6 +178,7 @@ function App() {
     onResetZoom: resetZoom,
     onOpenFile: openFile,
     onToggleSearch: toggleSearch,
+    onPrint: print,
     enabled: true,
   });
 
@@ -193,6 +219,8 @@ function App() {
         onSignPdf={() => setSignatureDialogOpen(true)}
         onMovePage={() => setMovePageDialogOpen(true)}
         onSaveAs={handleSaveAs}
+        onPrint={print}
+        printing={printing}
       />
       {searchOpen && (
         <SearchBar

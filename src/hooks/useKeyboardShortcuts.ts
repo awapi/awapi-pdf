@@ -8,6 +8,7 @@ interface KeyboardShortcutsOptions {
   onResetZoom: () => void;
   onOpenFile: () => void;
   onToggleSearch: () => void;
+  onPrint: () => void;
   enabled: boolean;
 }
 
@@ -19,6 +20,7 @@ export function useKeyboardShortcuts({
   onResetZoom,
   onOpenFile,
   onToggleSearch,
+  onPrint,
   enabled,
 }: KeyboardShortcutsOptions) {
   useEffect(() => {
@@ -38,6 +40,13 @@ export function useKeyboardShortcuts({
       if (isMod && e.key === "f") {
         e.preventDefault();
         onToggleSearch();
+        return;
+      }
+
+      // Print: Cmd/Ctrl+P
+      if (isMod && e.key === "p") {
+        e.preventDefault();
+        onPrint();
         return;
       }
 
@@ -77,5 +86,5 @@ export function useKeyboardShortcuts({
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [enabled, onNextPage, onPrevPage, onZoomIn, onZoomOut, onResetZoom, onOpenFile, onToggleSearch]);
+  }, [enabled, onNextPage, onPrevPage, onZoomIn, onZoomOut, onResetZoom, onOpenFile, onToggleSearch, onPrint]);
 }

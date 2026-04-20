@@ -47,16 +47,8 @@ export function usePdfDocument() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const openFile = useCallback(async () => {
+  const openFilePath = useCallback(async (filePath: string) => {
     try {
-      const selected = await open({
-        multiple: false,
-        filters: [{ name: "PDF", extensions: ["pdf"] }],
-      });
-
-      if (!selected) return; // User cancelled
-
-      const filePath = selected as string;
       const fileName = filePath.split("/").pop() ?? filePath;
 
       setState((prev) => ({
@@ -95,6 +87,25 @@ export function usePdfDocument() {
       }));
     }
   }, []);
+
+  const openFile = useCallback(async () => {
+    try {
+      const selected = await open({
+        multiple: false,
+        filters: [{ name: "PDF", extensions: ["pdf"] }],
+      });
+
+      if (!selected) return; // User cancelled
+
+      await openFilePath(selected as string);
+    } catch (err) {
+      setState((prev) => ({
+        ...prev,
+        loading: false,
+        error: err instanceof Error ? err.message : String(err),
+      }));
+    }
+  }, [openFilePath]);
 
   const goToPage = useCallback(
     (page: number) => {
@@ -181,6 +192,7 @@ export function usePdfDocument() {
     ...state,
     pdfBytes,
     openFile,
+    openFilePath,
     loadFromBytes,
     goToPage,
     nextPage,

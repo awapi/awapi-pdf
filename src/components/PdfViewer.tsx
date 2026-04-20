@@ -65,14 +65,19 @@ export function PdfViewer({
       const formLayerDiv = formLayerRef.current;
       if (!canvas || !textLayerDiv || !formLayerDiv || cancelled) return;
 
-      canvas.width = viewport.width;
-      canvas.height = viewport.height;
+      // Scale canvas buffer for high-DPI / Retina displays
+      const dpr = window.devicePixelRatio || 1;
+      canvas.width = Math.floor(viewport.width * dpr);
+      canvas.height = Math.floor(viewport.height * dpr);
+      canvas.style.width = `${Math.floor(viewport.width)}px`;
+      canvas.style.height = `${Math.floor(viewport.height)}px`;
 
       setPageDims({ w: viewport.width, h: viewport.height });
 
       const ctx = canvas.getContext("2d");
       if (!ctx) return;
 
+      ctx.scale(dpr, dpr);
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       await page.render({ canvasContext: ctx, viewport }).promise;
 

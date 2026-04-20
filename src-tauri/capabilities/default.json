@@ -15,6 +15,7 @@
     {
       "identifier": "fs:allow-write-file",
       "allow": [{ "path": "**" }]
-    }
+    },
+    "core:webview:allow-print"
   ]
 }

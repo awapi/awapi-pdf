@@ -676,3 +676,30 @@ body,
 .signature-img {
   object-fit: contain;
 }
+
+/* ---------- Print ---------- */
+
+@media print {
+  /* Hide everything except the print container */
+  html, body {
+    height: auto !important;
+    overflow: visible !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #fff !important;
+  }
+  #root {
+    display: none !important;
+  }
+  body > *:not(#print-container) {
+    display: none !important;
+  }
+  #print-container {
+    display: block !important;
+    position: static !important;
+  }
+  #print-container canvas {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+}

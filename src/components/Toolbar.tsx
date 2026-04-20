@@ -30,6 +30,8 @@ interface ToolbarProps {
   onSignPdf: () => void;
   onMovePage: () => void;
   onSaveAs: () => void;
+  onPrint: () => void;
+  printing: boolean;
 }
 
 export function Toolbar({
@@ -61,6 +63,8 @@ export function Toolbar({
   onSignPdf,
   onMovePage,
   onSaveAs,
+  onPrint,
+  printing,
 }: ToolbarProps) {
   const [pageInput, setPageInput] = useState("");
   const [showColorPicker, setShowColorPicker] = useState(false);
@@ -87,6 +91,16 @@ export function Toolbar({
         {hasPdf && (
           <button className="toolbar-btn" onClick={onSaveAs} title="Save As">
             💾
+          </button>
+        )}
+        {hasPdf && (
+          <button
+            className="toolbar-btn"
+            onClick={onPrint}
+            disabled={printing}
+            title="Print (Cmd+P)"
+          >
+            🖨️
           </button>
         )}
         {hasPdf && (
