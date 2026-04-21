@@ -76,7 +76,7 @@ Download the latest `.dmg` from the [Releases](https://github.com/awapi/awapi-pd
 ### Setup
 
 ```sh
-git clone https://github.com/omeryesil/awapi-pdf.git
+git clone https://github.com/awapi/awapi-pdf.git
 cd awapi-pdf
 just install    # install npm + cargo dependencies
 just dev        # run the app in development mode

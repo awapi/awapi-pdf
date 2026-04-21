@@ -13,7 +13,7 @@ Thanks for your interest in contributing to AwapiPDF! This document explains how
 
 ```sh
 # Clone the repo
-git clone https://github.com/omeryesil/awapi-pdf.git
+git clone https://github.com/awapi/awapi-pdf.git
 cd awapi-pdf
 
 # Install dependencies
@@ -73,7 +73,7 @@ just test-rust    # Rust tests
 
 ## Reporting Issues
 
-- Use [GitHub Issues](https://github.com/omeryesil/awapi-pdf/issues) to report bugs or request features.
+- Use [GitHub Issues](https://github.com/awapi/awapi-pdf/issues) to report bugs or request features.
 - Include steps to reproduce, expected behaviour, and your OS/version.
 
 ## Pull Request Guidelines
