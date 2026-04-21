@@ -52,7 +52,7 @@ pub fn run() {
                     if path.exists()
                         && path
                             .extension()
-                            .map_or(false, |e| e.eq_ignore_ascii_case("pdf"))
+                            .is_some_and(|e| e.eq_ignore_ascii_case("pdf"))
                     {
                         if let Some(path_str) = path.to_str() {
                             *_app.state::<PendingFile>().0.lock().unwrap() =
