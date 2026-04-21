@@ -90,13 +90,14 @@ release version:
         exit 1
     fi
     echo "→ Bumping version to {{version}}"
-    # Update package.json
-    npm version "{{version}}" --no-git-tag-version
+    # Update package.json (npm pkg set won't fail if version is already set)
+    npm pkg set version="{{version}}"
     # Update tauri.conf.json
     sed -i '' 's/"version": "[^"]*"/"version": "{{version}}"/' src-tauri/tauri.conf.json
     echo "→ Committing"
     git add package.json src-tauri/tauri.conf.json
-    git commit -m "chore: bump version to {{version}}"
+    # Only commit if there are staged changes
+    git diff --cached --quiet || git commit -m "chore: bump version to {{version}}"
     echo "→ Tagging v{{version}}"
     git tag "v{{version}}"
     echo "→ Pushing"

@@ -48,6 +48,22 @@ No subscriptions. No ads. No 900 MB installs. Just a clean, powerful PDF tool th
 
 ---
 
+## Installation
+
+### macOS
+
+Download the latest `.dmg` from the [Releases](https://github.com/awapi/awapi-pdf/releases) page, open it, and drag **AwapiPDF** to your Applications folder.
+
+> **Note:** The app is currently unsigned. macOS may block it from opening. After moving it to Applications, run the following command in Terminal to remove the quarantine flag:
+>
+> ```sh
+> xattr -cr /Applications/AwapiPDF.app
+> ```
+>
+> Then open the app normally.
+
+---
+
 ## Getting Started
 
 ### Prerequisites
