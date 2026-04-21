@@ -107,7 +107,7 @@ export function useAnnotations() {
 
   const updateAnnotation = useCallback((id: string, updates: Partial<Annotation>) => {
     setAnnotations((prev) =>
-      prev.map((a) => (a.id === id ? { ...a, ...updates } : a))
+      prev.map((a) => (a.id === id ? { ...a, ...updates } as Annotation : a))
     );
   }, []);
 

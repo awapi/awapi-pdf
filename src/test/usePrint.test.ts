@@ -87,7 +87,7 @@ describe("usePrint", () => {
 
     // Verify the body had only the print container when print() fired
     expect(bodyChildrenDuringPrint).toHaveLength(1);
-    expect(bodyChildrenDuringPrint[0]).toBe("DIV");
+    expect(bodyChildrenDuringPrint[0]).toBe("DIV#print-container");
 
     // Verify body was restored (root is back, no leftover print container)
     const bodyIds = Array.from(document.body.children).map((el) => el.id);
