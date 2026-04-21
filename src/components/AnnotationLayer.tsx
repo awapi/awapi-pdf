@@ -4,6 +4,7 @@ import type {
   AnnotationTool,
   HighlightColor,
   DrawStroke,
+  SignatureAnnotation,
 } from "../types/annotations";
 
 interface AnnotationLayerProps {
@@ -27,6 +28,7 @@ interface AnnotationLayerProps {
     width: number
   ) => void;
   onRemoveAnnotation: (id: string) => void;
+  onUpdateAnnotation: (id: string, updates: Partial<Annotation>) => void;
 }
 
 const HIGHLIGHT_COLORS: Record<HighlightColor, string> = {
@@ -48,6 +50,7 @@ export function AnnotationLayer({
   onUpdateNoteText,
   onAddDrawStroke,
   onRemoveAnnotation,
+  onUpdateAnnotation,
 }: AnnotationLayerProps) {
   const layerRef = useRef<HTMLDivElement>(null);
   const drawCanvasRef = useRef<HTMLCanvasElement>(null);
@@ -56,6 +59,135 @@ export function AnnotationLayer({
   >([]);
   const [isDrawing, setIsDrawing] = useState(false);
   const [editingNote, setEditingNote] = useState<string | null>(null);
+  const [draggingSigId, setDraggingSigId] = useState<string | null>(null);
+  const [selectedSigId, setSelectedSigId] = useState<string | null>(null);
+  const dragRef = useRef<{
+    id: string;
+    startX: number;
+    startY: number;
+    origX: number;
+    origY: number;
+    w: number;
+    h: number;
+  } | null>(null);
+  const resizeRef = useRef<{
+    id: string;
+    handle: string; // "se" | "sw" | "ne" | "nw"
+    startX: number;
+    startY: number;
+    origX: number;
+    origY: number;
+    origW: number;
+    origH: number;
+  } | null>(null);
+
+  // --- Signature resize handle ---
+  const handleResizeMouseDown = useCallback(
+    (e: React.MouseEvent, s: SignatureAnnotation, handle: string) => {
+      e.stopPropagation();
+      e.preventDefault();
+      resizeRef.current = {
+        id: s.id,
+        handle,
+        startX: e.clientX,
+        startY: e.clientY,
+        origX: s.x,
+        origY: s.y,
+        origW: s.w,
+        origH: s.h,
+      };
+    },
+    []
+  );
+
+  // --- Signature drag ---
+  const handleSigMouseDown = useCallback(
+    (e: React.MouseEvent, s: SignatureAnnotation) => {
+      e.stopPropagation();
+      e.preventDefault();
+      dragRef.current = {
+        id: s.id,
+        startX: e.clientX,
+        startY: e.clientY,
+        origX: s.x,
+        origY: s.y,
+        w: s.w,
+        h: s.h,
+      };
+      setDraggingSigId(s.id);
+    },
+    []
+  );
+
+  useEffect(() => {
+    function handleMouseMove(e: MouseEvent) {
+      // Resize takes priority over drag
+      const resize = resizeRef.current;
+      if (resize) {
+        const wrapper = layerRef.current?.parentElement;
+        if (!wrapper) return;
+        const rect = wrapper.getBoundingClientRect();
+        const dx = (e.clientX - resize.startX) / rect.width;
+        const dy = (e.clientY - resize.startY) / rect.height;
+        const MIN = 0.05;
+        let { origX: x, origY: y, origW: w, origH: h } = resize;
+        if (resize.handle === "se") {
+          w = Math.max(MIN, w + dx);
+          h = Math.max(MIN, h + dy);
+        } else if (resize.handle === "sw") {
+          const newW = Math.max(MIN, w - dx);
+          x = x + (w - newW);
+          w = newW;
+          h = Math.max(MIN, h + dy);
+        } else if (resize.handle === "ne") {
+          w = Math.max(MIN, w + dx);
+          const newH = Math.max(MIN, h - dy);
+          y = y + (h - newH);
+          h = newH;
+        } else if (resize.handle === "nw") {
+          const newW = Math.max(MIN, w - dx);
+          x = x + (w - newW);
+          w = newW;
+          const newH = Math.max(MIN, h - dy);
+          y = y + (h - newH);
+          h = newH;
+        }
+        // Clamp to page bounds
+        x = Math.max(0, Math.min(1 - w, x));
+        y = Math.max(0, Math.min(1 - h, y));
+        onUpdateAnnotation(resize.id, { x, y, w, h });
+        return;
+      }
+
+      const drag = dragRef.current;
+      if (!drag) return;
+      const wrapper = layerRef.current?.parentElement;
+      if (!wrapper) return;
+      const rect = wrapper.getBoundingClientRect();
+      const dx = (e.clientX - drag.startX) / rect.width;
+      const dy = (e.clientY - drag.startY) / rect.height;
+      const newX = Math.max(0, Math.min(1 - drag.w, drag.origX + dx));
+      const newY = Math.max(0, Math.min(1 - drag.h, drag.origY + dy));
+      onUpdateAnnotation(drag.id, { x: newX, y: newY });
+    }
+
+    function handleMouseUp() {
+      if (resizeRef.current) {
+        resizeRef.current = null;
+      }
+      if (dragRef.current) {
+        dragRef.current = null;
+        setDraggingSigId(null);
+      }
+    }
+
+    document.addEventListener("mousemove", handleMouseMove);
+    document.addEventListener("mouseup", handleMouseUp);
+    return () => {
+      document.removeEventListener("mousemove", handleMouseMove);
+      document.removeEventListener("mouseup", handleMouseUp);
+    };
+  }, [onUpdateAnnotation]);
 
   // --- Highlight: capture text selection via document-level listener
   //     so the text layer underneath receives pointer events for selection.
@@ -220,10 +352,16 @@ export function AnnotationLayer({
   return (
     <div
       ref={layerRef}
-      className={`annotation-layer ${activeTool && activeTool !== "highlight" ? "tool-active" : ""}`}
+      className={`annotation-layer ${activeTool && activeTool !== "highlight" ? "tool-active" : ""}${draggingSigId ? " sig-dragging" : ""}`}
       style={{ width: pageWidth, height: pageHeight }}
       onMouseUp={handleDrawEnd}
-      onClick={handleClick}
+      onClick={(e) => {
+        handleClick(e);
+        // Deselect signature when clicking empty area
+        if ((e.target as HTMLElement).closest(".signature-wrapper") === null) {
+          setSelectedSigId(null);
+        }
+      }}
       onMouseDown={handleDrawStart}
       onMouseMove={handleDrawMove}
     >
@@ -312,24 +450,46 @@ export function AnnotationLayer({
         .map(
           (s) =>
             s.type === "signature" && (
-              <img
+              <div
                 key={s.id}
-                className="signature-img"
-                src={s.dataUrl}
-                alt="Signature"
+                className={`signature-wrapper${selectedSigId === s.id ? " signature-selected" : ""}${draggingSigId === s.id ? " signature-img--dragging" : ""}`}
                 style={{
                   position: "absolute",
                   left: `${s.x * 100}%`,
                   top: `${s.y * 100}%`,
                   width: `${s.w * 100}%`,
                   height: `${s.h * 100}%`,
-                  pointerEvents: "auto",
                 }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setSelectedSigId(s.id);
+                }}
+                onMouseDown={(e) => handleSigMouseDown(e, s)}
                 onDoubleClick={(e) => {
                   e.stopPropagation();
                   onRemoveAnnotation(s.id);
+                  setSelectedSigId(null);
                 }}
-              />
+              >
+                <img
+                  className="signature-img"
+                  src={s.dataUrl}
+                  alt="Signature"
+                  draggable={false}
+                  style={{ width: "100%", height: "100%", display: "block" }}
+                />
+                {selectedSigId === s.id && (
+                  <>
+                    {(["nw", "ne", "sw", "se"] as const).map((handle) => (
+                      <div
+                        key={handle}
+                        className={`resize-handle resize-handle--${handle}`}
+                        onMouseDown={(e) => handleResizeMouseDown(e, s, handle)}
+                      />
+                    ))}
+                  </>
+                )}
+              </div>
             )
         )}
 

@@ -30,6 +30,7 @@ interface PdfViewerProps {
     width: number
   ) => void;
   onRemoveAnnotation: (id: string) => void;
+  onUpdateAnnotation: (id: string, updates: Partial<Annotation>) => void;
 }
 
 export function PdfViewer({
@@ -44,6 +45,7 @@ export function PdfViewer({
   onUpdateNoteText,
   onAddDrawStroke,
   onRemoveAnnotation,
+  onUpdateAnnotation,
 }: PdfViewerProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const textLayerRef = useRef<HTMLDivElement>(null);
@@ -176,6 +178,7 @@ export function PdfViewer({
           onUpdateNoteText={onUpdateNoteText}
           onAddDrawStroke={onAddDrawStroke}
           onRemoveAnnotation={onRemoveAnnotation}
+          onUpdateAnnotation={onUpdateAnnotation}
         />
       )}
     </div>

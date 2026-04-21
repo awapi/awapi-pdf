@@ -675,7 +675,44 @@ body,
 
 .signature-img {
   object-fit: contain;
+  cursor: grab;
+  user-select: none;
 }
+
+.signature-img--dragging,
+.sig-dragging .signature-img {
+  cursor: grabbing;
+}
+
+.signature-wrapper {
+  pointer-events: auto;
+  cursor: grab;
+  box-sizing: border-box;
+}
+
+.signature-wrapper.signature-selected {
+  outline: 2px dashed var(--accent, #4a90e2);
+  outline-offset: 2px;
+}
+
+.signature-wrapper.signature-img--dragging {
+  cursor: grabbing;
+}
+
+.resize-handle {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  background: var(--accent, #4a90e2);
+  border: 1px solid #fff;
+  border-radius: 2px;
+  z-index: 10;
+}
+
+.resize-handle--nw { top: -5px;  left: -5px;  cursor: nw-resize; }
+.resize-handle--ne { top: -5px;  right: -5px; cursor: ne-resize; }
+.resize-handle--sw { bottom: -5px; left: -5px;  cursor: sw-resize; }
+.resize-handle--se { bottom: -5px; right: -5px; cursor: se-resize; }
 
 /* ---------- Print ---------- */
 

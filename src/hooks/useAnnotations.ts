@@ -105,6 +105,12 @@ export function useAnnotations() {
     []
   );
 
+  const updateAnnotation = useCallback((id: string, updates: Partial<Annotation>) => {
+    setAnnotations((prev) =>
+      prev.map((a) => (a.id === id ? { ...a, ...updates } : a))
+    );
+  }, []);
+
   const clearAnnotations = useCallback(() => {
     setAnnotations([]);
   }, []);
@@ -121,6 +127,7 @@ export function useAnnotations() {
     updateNoteText,
     addDrawStroke,
     addSignature,
+    updateAnnotation,
     removeAnnotation,
     clearAnnotations,
   };

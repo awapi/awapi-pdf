@@ -39,6 +39,31 @@ fn print_pdf(bytes: Vec<u8>) -> Result<(), String> {
 pub fn run() {
     tauri::Builder::default()
         .manage(PendingFile(Mutex::new(None)))
+        .setup(|_app| {
+            // On Windows (and Linux), file associations pass the file path as a
+            // CLI argument rather than using the macOS/iOS RunEvent::Opened URL
+            // mechanism. Capture it here so the frontend can retrieve it via
+            // get_pending_file on mount.
+            #[cfg(not(any(target_os = "macos", target_os = "ios")))]
+            {
+                let args: Vec<String> = std::env::args().collect();
+                for arg in args.iter().skip(1) {
+                    let path = std::path::Path::new(arg);
+                    if path.exists()
+                        && path
+                            .extension()
+                            .map_or(false, |e| e.eq_ignore_ascii_case("pdf"))
+                    {
+                        if let Some(path_str) = path.to_str() {
+                            *_app.state::<PendingFile>().0.lock().unwrap() =
+                                Some(path_str.to_string());
+                        }
+                        break;
+                    }
+                }
+            }
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![get_pending_file, print_pdf])
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())

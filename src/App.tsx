@@ -74,11 +74,12 @@ function App() {
     updateNoteText,
     addDrawStroke,
     addSignature,
+    updateAnnotation,
     removeAnnotation,
     clearAnnotations,
   } = useAnnotations();
 
-  const { mergePdfs, splitPdf, createBlankPdf, movePage } = usePdfEditor();
+  const { mergePdfs, splitPdf, createBlankPdf, movePage, flattenAnnotationsToPdf } = usePdfEditor();
 
   const { print, printing } = usePrint(pdfDocument, pdfBytes);
 
@@ -116,9 +117,13 @@ function App() {
       title: "Save PDF As",
     });
     if (outputPath) {
-      await writeFile(outputPath, pdfBytes);
+      const bytesToWrite =
+        annotations.length > 0
+          ? await flattenAnnotationsToPdf(pdfBytes, annotations)
+          : pdfBytes;
+      await writeFile(outputPath, bytesToWrite);
     }
-  }, [pdfBytes, fileName]);
+  }, [pdfBytes, fileName, annotations, flattenAnnotationsToPdf]);
 
   const viewerRef = useRef<HTMLElement>(null);
   const scaleRef = useRef(scale);
@@ -284,6 +289,7 @@ function App() {
               onUpdateNoteText={updateNoteText}
               onAddDrawStroke={addDrawStroke}
               onRemoveAnnotation={removeAnnotation}
+              onUpdateAnnotation={updateAnnotation}
             />
           )}
         </main>
@@ -298,7 +304,7 @@ function App() {
       {signatureDialogOpen && pdfDocument && (
         <SignatureDialog
           onApply={(dataUrl) => {
-            addSignature(currentPage, 0.3, 0.7, 0.4, 0.15, dataUrl);
+            addSignature(currentPage, 0.3, 0.4, 0.4, 0.15, dataUrl);
             setSignatureDialogOpen(false);
           }}
           onClose={() => setSignatureDialogOpen(false)}
