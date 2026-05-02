@@ -10,11 +10,17 @@
     "fs:default",
     {
       "identifier": "fs:allow-read-file",
-      "allow": [{ "path": "**" }]
+      "allow": [
+        { "path": "/**" },
+        { "path": "?:/**" }
+      ]
     },
     {
       "identifier": "fs:allow-write-file",
-      "allow": [{ "path": "**" }]
+      "allow": [
+        { "path": "/**" },
+        { "path": "?:/**" }
+      ]
     },
     "core:webview:allow-print"
   ]

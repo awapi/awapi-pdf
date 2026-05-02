@@ -16,6 +16,7 @@ interface PdfState {
   totalPages: number;
   scale: number;
   fileName: string | null;
+  currentFilePath: string | null;
   loading: boolean;
   error: string | null;
 }
@@ -32,6 +33,7 @@ export function usePdfDocument() {
     totalPages: 0,
     scale: DEFAULT_ZOOM,
     fileName: null,
+    currentFilePath: null,
     loading: false,
     error: null,
   });
@@ -49,13 +51,15 @@ export function usePdfDocument() {
 
   const openFilePath = useCallback(async (filePath: string) => {
     try {
-      const fileName = filePath.split("/").pop() ?? filePath;
+      // Handle both Unix ("/") and Windows ("\\") path separators
+      const fileName = filePath.split(/[\/\\]/).pop() ?? filePath;
 
       setState((prev) => ({
         ...prev,
         loading: true,
         error: null,
         fileName,
+        currentFilePath: filePath,
       }));
 
       // Read file bytes via Tauri FS plugin
@@ -75,6 +79,7 @@ export function usePdfDocument() {
           totalPages: pdfDocument.numPages,
           scale: DEFAULT_ZOOM,
           fileName,
+          currentFilePath: prev.currentFilePath,
           loading: false,
           error: null,
         };

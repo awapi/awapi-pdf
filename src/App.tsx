@@ -1,29 +1,50 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { invoke } from "@tauri-apps/api/core";
-import { Toolbar } from "./components/Toolbar";
-import { Sidebar } from "./components/Sidebar";
-import { PdfViewer } from "./components/PdfViewer";
-import { WelcomeScreen } from "./components/WelcomeScreen";
-import { SearchBar } from "./components/SearchBar";
-import { SplitDialog } from "./components/SplitDialog";
-import { SignatureDialog } from "./components/SignatureDialog";
-import { MovePageDialog } from "./components/MovePageDialog";
-import { usePdfDocument } from "./hooks/usePdfDocument";
-import { useSearch } from "./hooks/useSearch";
-import { useAnnotations } from "./hooks/useAnnotations";
-import { usePdfEditor } from "./hooks/usePdfEditor";
-import { usePrint } from "./hooks/usePrint";
-import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
+import { TabBar } from "./components/TabBar";
+import type { TabInfo } from "./components/TabBar";
+import { PdfTabContent } from "./components/PdfTabContent";
+import { useUpdateCheck } from "./hooks/useUpdateCheck";
 import "./App.css";
 
+interface TabData extends TabInfo {
+  pendingFilePath: string | null;
+  currentFilePath: string | null;
+}
+
+let tabCounter = 0;
+function newTabId() {
+  return `tab-${++tabCounter}`;
+}
+
 function App() {
-  const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [searchOpen, setSearchOpen] = useState(false);
-  const [splitDialogOpen, setSplitDialogOpen] = useState(false);
-  const [signatureDialogOpen, setSignatureDialogOpen] = useState(false);
-  const [movePageDialogOpen, setMovePageDialogOpen] = useState(false);
+  const [tabs, setTabs] = useState<TabData[]>(() => {
+    const id = newTabId();
+    return [{ id, title: "New Tab", pendingFilePath: null, currentFilePath: null }];
+  });
+  const [activeTabId, setActiveTabId] = useState(() => tabs[0].id);
   const [theme, setTheme] = useState<"dark" | "light">("dark");
+
+  const { checkForUpdates } = useUpdateCheck();
+  const checkForUpdatesRef = useRef(checkForUpdates);
+  checkForUpdatesRef.current = checkForUpdates;
+
+  // Listen for native menu “Check for Updates” click.
+  useEffect(() => {
+    const unlisten = listen("menu-check-for-updates", () => {
+      checkForUpdatesRef.current();
+    });
+    return () => {
+      unlisten.then((fn) => fn());
+    };
+  }, []);
+
+  // Refs so event-listener callbacks always see current values without
+  // being recreated (which would re-attach listeners).
+  const activeTabIdRef = useRef(activeTabId);
+  activeTabIdRef.current = activeTabId;
+  const tabsRef = useRef(tabs);
+  tabsRef.current = tabs;
 
   const toggleTheme = useCallback(() => {
     setTheme((prev) => {
@@ -32,292 +53,154 @@ function App() {
       return next;
     });
   }, []);
-  const {
-    pdfDocument,
-    currentPage,
-    totalPages,
-    scale,
-    fileName,
-    loading,
-    error,
-    pdfBytes,
-    openFile,
-    openFilePath,
-    loadFromBytes,
-    goToPage,
-    nextPage,
-    prevPage,
-    zoomIn,
-    zoomOut,
-    resetZoom,
-    setScale,
-  } = usePdfDocument();
 
-  const {
-    results: searchResults,
-    searching,
-    currentResultIndex,
-    search,
-    clearSearch,
-    nextResult,
-    prevResult,
-  } = useSearch(pdfDocument);
+  const handleNewTab = useCallback(() => {
+    const id = newTabId();
+    setTabs((prev) => [...prev, { id, title: "New Tab", pendingFilePath: null, currentFilePath: null }]);
+    setActiveTabId(id);
+  }, []);
 
-  const {
-    annotations,
-    activeTool,
-    setActiveTool,
-    highlightColor,
-    setHighlightColor,
-    addHighlight,
-    addNote,
-    updateNoteText,
-    addDrawStroke,
-    addSignature,
-    updateAnnotation,
-    removeAnnotation,
-    clearAnnotations,
-  } = useAnnotations();
-
-  const { mergePdfs, splitPdf, createBlankPdf, movePage, flattenAnnotationsToPdf } = usePdfEditor();
-
-  const { print, printing } = usePrint(pdfDocument, pdfBytes);
-
-  const handleSplit = useCallback(
-    async (startPage: number, endPage: number) => {
-      if (!pdfBytes) return;
-      const newBytes = await splitPdf(pdfBytes, startPage, endPage);
-      if (newBytes) {
-        await loadFromBytes(newBytes);
+  const handleTabClose = useCallback((id: string) => {
+    setTabs((prev) => {
+      if (prev.length <= 1) return prev; // always keep at least one tab
+      const next = prev.filter((t) => t.id !== id);
+      if (activeTabIdRef.current === id) {
+        const idx = prev.findIndex((t) => t.id === id);
+        setActiveTabId(next[Math.min(idx, next.length - 1)].id);
       }
-      setSplitDialogOpen(false);
-    },
-    [pdfBytes, splitPdf, loadFromBytes]
-  );
-
-  const handleMovePage = useCallback(
-    async (fromPage: number, toPage: number) => {
-      if (!pdfBytes) return;
-      const newBytes = await movePage(pdfBytes, fromPage, toPage);
-      if (newBytes) {
-        await loadFromBytes(newBytes);
-      }
-      setMovePageDialogOpen(false);
-    },
-    [pdfBytes, movePage, loadFromBytes]
-  );
-
-  const handleSaveAs = useCallback(async () => {
-    if (!pdfBytes) return;
-    const { save } = await import("@tauri-apps/plugin-dialog");
-    const { writeFile } = await import("@tauri-apps/plugin-fs");
-    const outputPath = await save({
-      filters: [{ name: "PDF", extensions: ["pdf"] }],
-      defaultPath: fileName ?? "document.pdf",
-      title: "Save PDF As",
+      return next;
     });
-    if (outputPath) {
-      const bytesToWrite =
-        annotations.length > 0
-          ? await flattenAnnotationsToPdf(pdfBytes, annotations)
-          : pdfBytes;
-      await writeFile(outputPath, bytesToWrite);
+  }, []);
+
+  const handleTabSelect = useCallback((id: string) => {
+    setActiveTabId(id);
+  }, []);
+
+  // Called by each PdfTabContent when its open file path changes.
+  const handleFilePathChange = useCallback((tabId: string, filePath: string | null) => {
+    setTabs((prev) => {
+      const tab = prev.find((t) => t.id === tabId);
+      if (!tab || tab.currentFilePath === filePath) return prev;
+      return prev.map((t) => (t.id === tabId ? { ...t, currentFilePath: filePath } : t));
+    });
+  }, []);
+
+  // Called by each PdfTabContent when its displayed file name changes.
+  const handleTitleChange = useCallback((tabId: string, title: string | null) => {
+    setTabs((prev) => {
+      const tab = prev.find((t) => t.id === tabId);
+      const newTitle = title ?? "New Tab";
+      if (!tab || tab.title === newTitle) return prev; // bail out — no change
+      return prev.map((t) => (t.id === tabId ? { ...t, title: newTitle } : t));
+    });
+  }, []);
+
+  // Called once a PdfTabContent has consumed its pendingFilePath.
+  const handlePendingFileConsumed = useCallback((tabId: string) => {
+    setTabs((prev) =>
+      prev.map((t) => (t.id === tabId ? { ...t, pendingFilePath: null } : t))
+    );
+  }, []);
+
+  // Route an externally-triggered file open to the correct tab:
+  // - If the file is already open in an existing tab, activate that tab.
+  // - If the active tab is empty (title "New Tab"), open in it.
+  // - Otherwise, open in a brand-new tab.
+  const openFileExternal = useCallback((filePath: string) => {
+    const currentActiveId = activeTabIdRef.current;
+    const currentTabs = tabsRef.current;
+
+    // Check if any tab already has this file open.
+    const existingTab = currentTabs.find((t) => t.currentFilePath === filePath);
+    if (existingTab) {
+      setActiveTabId(existingTab.id);
+      return;
     }
-  }, [pdfBytes, fileName, annotations, flattenAnnotationsToPdf]);
 
-  const viewerRef = useRef<HTMLElement>(null);
-  const scaleRef = useRef(scale);
-  scaleRef.current = scale;
+    const activeTab = currentTabs.find((t) => t.id === currentActiveId);
 
-  // Pinch-to-zoom: trackpad pinch fires wheel events with ctrlKey on both macOS and Windows
-  useEffect(() => {
-    const el = viewerRef.current;
-    if (!el) return;
-
-    function handleWheel(e: WheelEvent) {
-      if (!e.ctrlKey) return;
-      e.preventDefault();
-      const zoomFactor = 1 - e.deltaY * 0.01;
-      setScale(scaleRef.current * zoomFactor);
+    if (activeTab && activeTab.title === "New Tab") {
+      setTabs((prev) =>
+        prev.map((t) =>
+          t.id === currentActiveId ? { ...t, pendingFilePath: filePath } : t
+        )
+      );
+    } else {
+      const id = newTabId();
+      setTabs((prev) => [
+        ...prev,
+        { id, title: "New Tab", pendingFilePath: filePath, currentFilePath: null },
+      ]);
+      setActiveTabId(id);
     }
+  }, []);
 
-    el.addEventListener("wheel", handleWheel, { passive: false });
-    return () => el.removeEventListener("wheel", handleWheel);
-  }, [setScale]);
-
-  // Listen for file-open events from macOS file associations
+  // Keyboard shortcut: Cmd/Ctrl+T → new tab.
   useEffect(() => {
-    const unlisten = listen<string>("open-file", (event) => {
-      openFilePath(event.payload);
+    function handleKeyDown(e: KeyboardEvent) {
+      const isMod = e.metaKey || e.ctrlKey;
+      if (isMod && e.key === "t") {
+        e.preventDefault();
+        handleNewTab();
+      }
+    }
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [handleNewTab]);
+
+  // Listen for OS file-open events (macOS "Open With" / file associations).
+  // get_pending_file is called AFTER the listener is registered to close the
+  // race window where RunEvent::Opened fires before mount.
+  useEffect(() => {
+    let active = true;
+    const unlistenPromise = listen<string>("open-file", (event) => {
+      openFileExternal(event.payload);
+    }).then((unlisten) => {
+      if (active) {
+        invoke<string | null>("get_pending_file").then((filePath) => {
+          if (filePath) openFileExternal(filePath);
+        });
+      }
+      return unlisten;
     });
     return () => {
-      unlisten.then((fn) => fn());
+      active = false;
+      unlistenPromise.then((fn) => fn());
     };
-  }, [openFilePath]);
+  }, [openFileExternal]);
 
-  // Listen for OS-level drag-and-drop (Tauri v2 intercepts before browser events)
+  // Listen for OS-level drag-and-drop (Tauri v2 intercepts before browser events).
   useEffect(() => {
     const unlisten = listen<{ paths: string[] }>("tauri://drag-drop", (event) => {
       const path = event.payload.paths?.[0];
-      if (path) openFilePath(path);
+      if (path) openFileExternal(path);
     });
     return () => {
       unlisten.then((fn) => fn());
     };
-  }, [openFilePath]);
-
-  // Check for a pending file on mount (handles launch via "Open With")
-  useEffect(() => {
-    invoke<string | null>("get_pending_file").then((filePath) => {
-      if (filePath) {
-        openFilePath(filePath);
-      }
-    });
-  }, [openFilePath]);
-
-  const toggleSidebar = useCallback(() => {
-    setSidebarOpen((prev) => !prev);
-  }, []);
-
-  const toggleSearch = useCallback(() => {
-    setSearchOpen((prev) => {
-      if (prev) clearSearch();
-      return !prev;
-    });
-  }, [clearSearch]);
-
-  useKeyboardShortcuts({
-    onNextPage: nextPage,
-    onPrevPage: prevPage,
-    onZoomIn: zoomIn,
-    onZoomOut: zoomOut,
-    onResetZoom: resetZoom,
-    onOpenFile: openFile,
-    onToggleSearch: toggleSearch,
-    onPrint: print,
-    enabled: true,
-  });
+  }, [openFileExternal]);
 
   return (
     <div className="app">
-      <Toolbar
-        fileName={fileName}
-        currentPage={currentPage}
-        totalPages={totalPages}
-        scale={scale}
-        onOpenFile={openFile}
-        onPrevPage={prevPage}
-        onNextPage={nextPage}
-        onGoToPage={goToPage}
-        onZoomIn={zoomIn}
-        onZoomOut={zoomOut}
-        onResetZoom={resetZoom}
-        onToggleSidebar={toggleSidebar}
-        onToggleSearch={toggleSearch}
-        onToggleTheme={toggleTheme}
-        theme={theme}
-        hasPdf={!!pdfDocument}
-        activeTool={activeTool}
-        onSetActiveTool={setActiveTool}
-        highlightColor={highlightColor}
-        onSetHighlightColor={setHighlightColor}
-        hasAnnotations={annotations.length > 0}
-        onClearAnnotations={clearAnnotations}
-        onMergePdfs={async () => {
-          const newBytes = await mergePdfs(pdfBytes);
-          if (newBytes) await loadFromBytes(newBytes);
-        }}
-        onSplitPdf={() => setSplitDialogOpen(true)}
-        onCreateBlankPdf={async () => {
-          const newBytes = await createBlankPdf(1);
-          if (newBytes) await loadFromBytes(newBytes);
-        }}
-        onSignPdf={() => setSignatureDialogOpen(true)}
-        onMovePage={() => setMovePageDialogOpen(true)}
-        onSaveAs={handleSaveAs}
-        onPrint={print}
-        printing={printing}
+      <TabBar
+        tabs={tabs}
+        activeTabId={activeTabId}
+        onTabSelect={handleTabSelect}
+        onTabClose={handleTabClose}
+        onNewTab={handleNewTab}
       />
-      {searchOpen && (
-        <SearchBar
-          onSearch={search}
-          onClear={clearSearch}
-          onNext={nextResult}
-          onPrev={prevResult}
-          onGoToResult={goToPage}
-          results={searchResults}
-          currentResultIndex={currentResultIndex}
-          searching={searching}
-          visible={searchOpen}
-          onClose={() => { clearSearch(); setSearchOpen(false); }}
+      {tabs.map((tab) => (
+        <PdfTabContent
+          key={tab.id}
+          active={tab.id === activeTabId}
+          theme={theme}
+          onToggleTheme={toggleTheme}
+          onTitleChange={(title) => handleTitleChange(tab.id, title)}
+          onFilePathChange={(filePath) => handleFilePathChange(tab.id, filePath)}
+          pendingFilePath={tab.pendingFilePath}
+          onPendingFileConsumed={() => handlePendingFileConsumed(tab.id)}
         />
-      )}
-      <div className="app-body">
-        {sidebarOpen && pdfDocument && (
-          <Sidebar
-            pdfDocument={pdfDocument}
-            currentPage={currentPage}
-            onPageSelect={goToPage}
-          />
-        )}
-        <main className="viewer-area" ref={viewerRef}>
-          {loading && (
-            <div className="status-message">
-              <div className="spinner" />
-              <p>Loading PDF…</p>
-            </div>
-          )}
-          {error && (
-            <div className="status-message error">
-              <p>Failed to load PDF</p>
-              <p className="error-detail">{error}</p>
-            </div>
-          )}
-          {!pdfDocument && !loading && !error && (
-            <WelcomeScreen onOpenFile={openFile} />
-          )}
-          {pdfDocument && !loading && (
-            <PdfViewer
-              pdfDocument={pdfDocument}
-              currentPage={currentPage}
-              scale={scale}
-              annotations={annotations}
-              activeTool={activeTool}
-              highlightColor={highlightColor}
-              onAddHighlight={addHighlight}
-              onAddNote={addNote}
-              onUpdateNoteText={updateNoteText}
-              onAddDrawStroke={addDrawStroke}
-              onRemoveAnnotation={removeAnnotation}
-              onUpdateAnnotation={updateAnnotation}
-            />
-          )}
-        </main>
-      </div>
-      {splitDialogOpen && pdfDocument && (
-        <SplitDialog
-          totalPages={totalPages}
-          onSplit={handleSplit}
-          onClose={() => setSplitDialogOpen(false)}
-        />
-      )}
-      {signatureDialogOpen && pdfDocument && (
-        <SignatureDialog
-          onApply={(dataUrl) => {
-            addSignature(currentPage, 0.3, 0.4, 0.4, 0.15, dataUrl);
-            setSignatureDialogOpen(false);
-          }}
-          onClose={() => setSignatureDialogOpen(false)}
-        />
-      )}
-      {movePageDialogOpen && pdfDocument && (
-        <MovePageDialog
-          totalPages={totalPages}
-          currentPage={currentPage}
-          onMove={handleMovePage}
-          onClose={() => setMovePageDialogOpen(false)}
-        />
-      )}
+      ))}
     </div>
   );
 }

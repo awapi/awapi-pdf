@@ -1,4 +1,6 @@
 use std::sync::Mutex;
+use tauri::menu::{MenuBuilder, MenuItem, SubmenuBuilder};
+use tauri::Emitter;
 use tauri::Manager;
 
 /// Holds file paths received before the frontend is ready.
@@ -39,7 +41,80 @@ fn print_pdf(bytes: Vec<u8>) -> Result<(), String> {
 pub fn run() {
     tauri::Builder::default()
         .manage(PendingFile(Mutex::new(None)))
-        .setup(|_app| {
+        .setup(|app| {
+            // Build the native menu bar with a Help → Check for Updates item.
+            let check_updates_item = MenuItem::with_id(
+                app,
+                "check-for-updates",
+                "Check for Updates",
+                true,
+                None::<&str>,
+            )?;
+
+            #[cfg(target_os = "macos")]
+            {
+                let app_submenu = SubmenuBuilder::new(app, "AwapiPDF")
+                    .about(None)
+                    .separator()
+                    .services()
+                    .separator()
+                    .hide()
+                    .hide_others()
+                    .show_all()
+                    .separator()
+                    .quit()
+                    .build()?;
+                let file_submenu = SubmenuBuilder::new(app, "File")
+                    .close_window()
+                    .build()?;
+                let edit_submenu = SubmenuBuilder::new(app, "Edit")
+                    .undo()
+                    .redo()
+                    .separator()
+                    .cut()
+                    .copy()
+                    .paste()
+                    .select_all()
+                    .build()?;
+                let view_submenu = SubmenuBuilder::new(app, "View")
+                    .fullscreen()
+                    .build()?;
+                let window_submenu = SubmenuBuilder::new(app, "Window")
+                    .minimize()
+                    .build()?;
+                let help_submenu = SubmenuBuilder::new(app, "Help")
+                    .item(&check_updates_item)
+                    .build()?;
+                let menu = MenuBuilder::new(app)
+                    .items(&[
+                        &app_submenu,
+                        &file_submenu,
+                        &edit_submenu,
+                        &view_submenu,
+                        &window_submenu,
+                        &help_submenu,
+                    ])
+                    .build()?;
+                app.set_menu(menu)?;
+            }
+
+            #[cfg(not(target_os = "macos"))]
+            {
+                let help_submenu = SubmenuBuilder::new(app, "Help")
+                    .item(&check_updates_item)
+                    .build()?;
+                let menu = MenuBuilder::new(app)
+                    .items(&[&help_submenu])
+                    .build()?;
+                app.set_menu(menu)?;
+            }
+
+            app.on_menu_event(|app_handle, event| {
+                if event.id().0 == "check-for-updates" {
+                    let _ = app_handle.emit("menu-check-for-updates", ());
+                }
+            });
+
             // On Windows (and Linux), file associations pass the file path as a
             // CLI argument rather than using the macOS/iOS RunEvent::Opened URL
             // mechanism. Capture it here so the frontend can retrieve it via
@@ -55,7 +130,7 @@ pub fn run() {
                             .is_some_and(|e| e.eq_ignore_ascii_case("pdf"))
                     {
                         if let Some(path_str) = path.to_str() {
-                            *_app.state::<PendingFile>().0.lock().unwrap() =
+                            *app.state::<PendingFile>().0.lock().unwrap() =
                                 Some(path_str.to_string());
                         }
                         break;

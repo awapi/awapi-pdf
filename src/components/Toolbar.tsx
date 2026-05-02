@@ -26,7 +26,6 @@ interface ToolbarProps {
   onClearAnnotations: () => void;
   onMergePdfs: () => void;
   onSplitPdf: () => void;
-  onCreateBlankPdf: () => void;
   onSignPdf: () => void;
   onMovePage: () => void;
   onSaveAs: () => void;
@@ -59,7 +58,6 @@ export function Toolbar({
   onClearAnnotations,
   onMergePdfs,
   onSplitPdf,
-  onCreateBlankPdf,
   onSignPdf,
   onMovePage,
   onSaveAs,
@@ -294,13 +292,6 @@ export function Toolbar({
             ✂️
           </button>
         )}
-        <button
-          className="toolbar-btn"
-          onClick={onCreateBlankPdf}
-          title="Create blank PDF"
-        >
-          📄
-        </button>
         {hasPdf && (
           <button
             className="toolbar-btn"
