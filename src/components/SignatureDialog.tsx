@@ -15,8 +15,9 @@ export function SignatureDialog({ onApply, onClose }: SignatureDialogProps) {
     if (!canvas) return;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
-    ctx.fillStyle = "#ffffff";
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    // Keep the canvas transparent so the saved PNG only contains the
+    // opaque strokes. This composites cleanly over any PDF background.
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.strokeStyle = "#000000";
     ctx.lineWidth = 2;
     ctx.lineCap = "round";
@@ -72,15 +73,54 @@ export function SignatureDialog({ onApply, onClose }: SignatureDialogProps) {
     if (!canvas) return;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
-    ctx.fillStyle = "#ffffff";
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    // Re-apply stroke style after clear (some browsers reset state).
+    ctx.strokeStyle = "#000000";
+    ctx.lineWidth = 2;
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
     setHasContent(false);
   }, []);
 
   const handleApply = useCallback(() => {
     const canvas = canvasRef.current;
     if (!canvas || !hasContent) return;
-    const dataUrl = canvas.toDataURL("image/png");
+
+    // Export to PNG. The drawing canvas is transparent except for the strokes,
+    // so the resulting PNG has a soft (alpha) mask. Some PDF renderers
+    // (notably certain pdf.js configurations) ignore or mis-composite the
+    // mask, which causes the transparent region to appear as a solid black
+    // box because cleared canvas pixels default to RGB=(0,0,0).
+    //
+    // To make rendering consistent across viewers (Preview, Adobe, pdf.js),
+    // copy the canvas to a temporary one and force the RGB of every
+    // transparent pixel to white. The alpha channel is preserved, so viewers
+    // that honor the mask still get a transparent background, but viewers
+    // that drop the mask now see white (invisible on a white page) instead
+    // of black.
+    const out = document.createElement("canvas");
+    out.width = canvas.width;
+    out.height = canvas.height;
+    const outCtx = out.getContext("2d");
+    if (!outCtx) {
+      onApply(canvas.toDataURL("image/png"));
+      return;
+    }
+    outCtx.drawImage(canvas, 0, 0);
+    const img = outCtx.getImageData(0, 0, out.width, out.height);
+    const data = img.data;
+    for (let i = 0; i < data.length; i += 4) {
+      // If the pixel is fully transparent, normalise its RGB to white so
+      // viewers that ignore the alpha channel render it as white instead of
+      // black.
+      if (data[i + 3] === 0) {
+        data[i] = 255;
+        data[i + 1] = 255;
+        data[i + 2] = 255;
+      }
+    }
+    outCtx.putImageData(img, 0, 0);
+    const dataUrl = out.toDataURL("image/png");
     onApply(dataUrl);
   }, [hasContent, onApply]);
 

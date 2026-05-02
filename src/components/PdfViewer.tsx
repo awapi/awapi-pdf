@@ -78,18 +78,28 @@ const PageRenderer = forwardRef<HTMLDivElement, PageRendererProps>(
 
     useEffect(() => {
       let cancelled = false;
+      let renderTask: { cancel: () => void } | null = null;
       let textLayerInstance: TextLayer | null = null;
 
       async function renderPage() {
         const page = await pdfDocument.getPage(pageNumber);
-        const viewport = page.getViewport({ scale });
+        if (cancelled) return;
+
+        // PDF points are 72/inch; CSS pixels are nominally 96/inch.
+        // On hi-DPI displays (e.g. Retina), use devicePixelRatio to render
+        // into a hi-res backing buffer while keeping CSS size at logical pixels.
+        const CSS_DPI = 96;
+        const PDF_DPI = 72;
+        const dpr = window.devicePixelRatio || 1;
+        // Logical viewport (no DPR) — defines the CSS display size.
+        const logicalScale = scale * (CSS_DPI / PDF_DPI);
+        const viewport = page.getViewport({ scale: logicalScale });
         const canvas = canvasRef.current;
         const textLayerDiv = textLayerRef.current;
         const formLayerDiv = formLayerRef.current;
         if (!canvas || !textLayerDiv || !formLayerDiv || cancelled) return;
 
-        // Scale canvas buffer for high-DPI / Retina displays
-        const dpr = window.devicePixelRatio || 1;
+        // Physical canvas buffer is DPR × logical size for crisp hi-DPI rendering.
         canvas.width = Math.floor(viewport.width * dpr);
         canvas.height = Math.floor(viewport.height * dpr);
         canvas.style.width = `${Math.floor(viewport.width)}px`;
@@ -100,9 +110,18 @@ const PageRenderer = forwardRef<HTMLDivElement, PageRendererProps>(
         const ctx = canvas.getContext("2d");
         if (!ctx) return;
 
-        ctx.scale(dpr, dpr);
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        await page.render({ canvasContext: ctx, viewport }).promise;
+        // Render at physical resolution using a hi-DPR viewport.
+        // No ctx.scale needed — the viewport transform already maps to physical pixels.
+        const hiDprViewport = page.getViewport({ scale: logicalScale * dpr });
+        const task = page.render({ canvasContext: ctx, viewport: hiDprViewport });
+        renderTask = task;
+        try {
+          await task.promise;
+        } catch {
+          // Render was cancelled — leave previous frame intact.
+          return;
+        }
+        renderTask = null;
 
         if (cancelled) return;
 
@@ -173,6 +192,7 @@ const PageRenderer = forwardRef<HTMLDivElement, PageRendererProps>(
 
       return () => {
         cancelled = true;
+        renderTask?.cancel();
         textLayerInstance?.cancel();
       };
     }, [pdfDocument, pageNumber, scale]);

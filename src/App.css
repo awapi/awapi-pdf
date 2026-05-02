@@ -680,6 +680,55 @@ body,
   border-color: var(--text-primary);
 }
 
+/* ---------- Recent Files Dropdown ---------- */
+
+.recent-files-wrapper {
+  position: relative;
+}
+
+.recent-files-toggle {
+  font-size: 12px !important;
+  width: 20px !important;
+  opacity: 0.7;
+}
+
+.recent-files-toggle:hover {
+  opacity: 1;
+}
+
+.recent-files-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  min-width: 220px;
+  max-width: 360px;
+  padding: 4px 0;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  z-index: 100;
+}
+
+.recent-files-item {
+  display: block;
+  width: 100%;
+  padding: 7px 14px;
+  background: none;
+  border: none;
+  color: var(--text-primary);
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.recent-files-item:hover {
+  background: var(--bg-hover, rgba(255, 255, 255, 0.08));
+}
+
 .help-dropdown {
   position: absolute;
   top: 100%;
@@ -898,4 +947,63 @@ body,
     break-inside: avoid;
     page-break-inside: avoid;
   }
+}
+
+/* ---------- About Dialog ---------- */
+
+.about-dialog {
+  min-width: 320px;
+  max-width: 400px;
+}
+
+.about-app-name {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 14px;
+}
+
+.about-info-grid {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 4px 12px;
+  margin-bottom: 14px;
+}
+
+.about-info-label {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.about-info-value {
+  font-size: 13px;
+  color: var(--text-primary);
+}
+
+.about-description,
+.about-maintainer {
+  font-size: 13px;
+  color: var(--text-primary);
+  line-height: 1.6;
+  margin-bottom: 10px;
+}
+
+.about-link {
+  color: var(--accent);
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.about-link:hover {
+  text-decoration: underline;
+}
+
+.about-actions {
+  justify-content: stretch;
+  gap: 8px;
+}
+
+.about-actions .dialog-btn-secondary,
+.about-actions .dialog-btn-primary {
+  flex: 1;
 }

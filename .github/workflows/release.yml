@@ -70,6 +70,6 @@ jobs:
             | Windows  | `.msi` or `.exe` |
             | macOS    | `.dmg` |
             | Linux    | `.AppImage` or `.deb` |
-          releaseDraft: false
+          releaseDraft: ${{ endsWith(github.ref_name, '-draft') }}
           prerelease: false
           args: ${{ matrix.args }}

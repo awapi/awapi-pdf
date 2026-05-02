@@ -1,5 +1,6 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import type { AnnotationTool, HighlightColor } from "../types/annotations";
+import type { RecentFile } from "../hooks/useRecentFiles";
 
 interface ToolbarProps {
   fileName: string | null;
@@ -31,6 +32,8 @@ interface ToolbarProps {
   onSaveAs: () => void;
   onPrint: () => void;
   printing: boolean;
+  recentFiles: RecentFile[];
+  onOpenRecentFile: (path: string) => void;
 }
 
 export function Toolbar({
@@ -63,9 +66,25 @@ export function Toolbar({
   onSaveAs,
   onPrint,
   printing,
+  recentFiles,
+  onOpenRecentFile,
 }: ToolbarProps) {
   const [pageInput, setPageInput] = useState("");
   const [showColorPicker, setShowColorPicker] = useState(false);
+  const [showRecentFiles, setShowRecentFiles] = useState(false);
+  const recentFilesRef = useRef<HTMLDivElement>(null);
+
+  // Close recent-files dropdown when clicking outside of it.
+  useEffect(() => {
+    if (!showRecentFiles) return;
+    function handleClick(e: MouseEvent) {
+      if (recentFilesRef.current && !recentFilesRef.current.contains(e.target as Node)) {
+        setShowRecentFiles(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [showRecentFiles]);
 
   const handlePageSubmit = useCallback(
     (e: React.FormEvent) => {
@@ -86,6 +105,34 @@ export function Toolbar({
         <button className="toolbar-btn" onClick={onOpenFile} title="Open PDF">
           📂
         </button>
+        {recentFiles.length > 0 && (
+          <div className="recent-files-wrapper" ref={recentFilesRef}>
+            <button
+              className="toolbar-btn recent-files-toggle"
+              onClick={() => setShowRecentFiles((p) => !p)}
+              title="Recent files"
+            >
+              ▾
+            </button>
+            {showRecentFiles && (
+              <div className="recent-files-dropdown">
+                {recentFiles.map((f) => (
+                  <button
+                    key={f.path}
+                    className="recent-files-item"
+                    title={f.path}
+                    onClick={() => {
+                      onOpenRecentFile(f.path);
+                      setShowRecentFiles(false);
+                    }}
+                  >
+                    {f.name}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
         {hasPdf && (
           <button className="toolbar-btn" onClick={onSaveAs} title="Save As">
             💾

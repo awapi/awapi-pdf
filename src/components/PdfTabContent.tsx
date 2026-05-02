@@ -13,6 +13,7 @@ import { useAnnotations } from "../hooks/useAnnotations";
 import { usePdfEditor } from "../hooks/usePdfEditor";
 import { usePrint } from "../hooks/usePrint";
 import { useKeyboardShortcuts } from "../hooks/useKeyboardShortcuts";
+import type { RecentFile } from "../hooks/useRecentFiles";
 
 interface PdfTabContentProps {
   active: boolean;
@@ -26,6 +27,10 @@ interface PdfTabContentProps {
   pendingFilePath: string | null;
   /** Called once the pending file has been consumed (opened or errored). */
   onPendingFileConsumed: () => void;
+  /** List of recently opened files (path + display name). */
+  recentFiles: RecentFile[];
+  /** Called when the user picks a recent file to open. */
+  onOpenRecentFile: (path: string) => void;
 }
 
 export function PdfTabContent({
@@ -36,6 +41,8 @@ export function PdfTabContent({
   onFilePathChange,
   pendingFilePath,
   onPendingFileConsumed,
+  recentFiles,
+  onOpenRecentFile,
 }: PdfTabContentProps) {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [searchOpen, setSearchOpen] = useState(false);
@@ -234,6 +241,8 @@ export function PdfTabContent({
         onSaveAs={handleSaveAs}
         onPrint={print}
         printing={printing}
+        recentFiles={recentFiles}
+        onOpenRecentFile={onOpenRecentFile}
       />
       {searchOpen && (
         <SearchBar

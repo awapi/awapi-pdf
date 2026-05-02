@@ -4,7 +4,9 @@ import { invoke } from "@tauri-apps/api/core";
 import { TabBar } from "./components/TabBar";
 import type { TabInfo } from "./components/TabBar";
 import { PdfTabContent } from "./components/PdfTabContent";
+import { AboutDialog } from "./components/AboutDialog";
 import { useUpdateCheck } from "./hooks/useUpdateCheck";
+import { useRecentFiles } from "./hooks/useRecentFiles";
 import "./App.css";
 
 interface TabData extends TabInfo {
@@ -23,7 +25,15 @@ function App() {
     return [{ id, title: "New Tab", pendingFilePath: null, currentFilePath: null }];
   });
   const [activeTabId, setActiveTabId] = useState(() => tabs[0].id);
-  const [theme, setTheme] = useState<"dark" | "light">("dark");
+  const [theme, setTheme] = useState<"dark" | "light">(() => {
+    const saved = localStorage.getItem("awapi-theme");
+    const initial: "dark" | "light" = saved === "light" ? "light" : "dark";
+    document.documentElement.setAttribute("data-theme", initial);
+    return initial;
+  });
+  const [aboutDialogOpen, setAboutDialogOpen] = useState(false);
+
+  const { recentFiles, addRecentFile } = useRecentFiles();
 
   const { checkForUpdates } = useUpdateCheck();
   const checkForUpdatesRef = useRef(checkForUpdates);
@@ -38,7 +48,15 @@ function App() {
       unlisten.then((fn) => fn());
     };
   }, []);
-
+  // Listen for native menu "About" click.
+  useEffect(() => {
+    const unlisten = listen("menu-about", () => {
+      setAboutDialogOpen(true);
+    });
+    return () => {
+      unlisten.then((fn) => fn());
+    };
+  }, []);
   // Refs so event-listener callbacks always see current values without
   // being recreated (which would re-attach listeners).
   const activeTabIdRef = useRef(activeTabId);
@@ -50,6 +68,7 @@ function App() {
     setTheme((prev) => {
       const next = prev === "dark" ? "light" : "dark";
       document.documentElement.setAttribute("data-theme", next);
+      localStorage.setItem("awapi-theme", next);
       return next;
     });
   }, []);
@@ -78,12 +97,16 @@ function App() {
 
   // Called by each PdfTabContent when its open file path changes.
   const handleFilePathChange = useCallback((tabId: string, filePath: string | null) => {
+    if (filePath) {
+      const name = filePath.split("/").pop() ?? filePath;
+      addRecentFile(filePath, name);
+    }
     setTabs((prev) => {
       const tab = prev.find((t) => t.id === tabId);
       if (!tab || tab.currentFilePath === filePath) return prev;
       return prev.map((t) => (t.id === tabId ? { ...t, currentFilePath: filePath } : t));
     });
-  }, []);
+  }, [addRecentFile]);
 
   // Called by each PdfTabContent when its displayed file name changes.
   const handleTitleChange = useCallback((tabId: string, title: string | null) => {
@@ -199,8 +222,13 @@ function App() {
           onFilePathChange={(filePath) => handleFilePathChange(tab.id, filePath)}
           pendingFilePath={tab.pendingFilePath}
           onPendingFileConsumed={() => handlePendingFileConsumed(tab.id)}
+          recentFiles={recentFiles}
+          onOpenRecentFile={openFileExternal}
         />
       ))}
+      {aboutDialogOpen && (
+        <AboutDialog onClose={() => setAboutDialogOpen(false)} />
+      )}
     </div>
   );
 }
