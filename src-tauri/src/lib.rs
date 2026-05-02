@@ -50,11 +50,18 @@ pub fn run() {
                 true,
                 None::<&str>,
             )?;
+            let about_item = MenuItem::with_id(
+                app,
+                "about",
+                "About AwapiPDF",
+                true,
+                None::<&str>,
+            )?;
 
             #[cfg(target_os = "macos")]
             {
                 let app_submenu = SubmenuBuilder::new(app, "AwapiPDF")
-                    .about(None)
+                    .item(&about_item)
                     .separator()
                     .services()
                     .separator()
@@ -102,6 +109,8 @@ pub fn run() {
             {
                 let help_submenu = SubmenuBuilder::new(app, "Help")
                     .item(&check_updates_item)
+                    .separator()
+                    .item(&about_item)
                     .build()?;
                 let menu = MenuBuilder::new(app)
                     .items(&[&help_submenu])
@@ -112,6 +121,8 @@ pub fn run() {
             app.on_menu_event(|app_handle, event| {
                 if event.id().0 == "check-for-updates" {
                     let _ = app_handle.emit("menu-check-for-updates", ());
+                } else if event.id().0 == "about" {
+                    let _ = app_handle.emit("menu-about", ());
                 }
             });
 
