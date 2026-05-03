@@ -1,6 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { invoke } from "@tauri-apps/api/core";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import { TabBar } from "./components/TabBar";
 import type { TabInfo } from "./components/TabBar";
 import { PdfTabContent } from "./components/PdfTabContent";
@@ -32,6 +33,11 @@ function App() {
     return initial;
   });
   const [aboutDialogOpen, setAboutDialogOpen] = useState(false);
+
+  // Sync the native macOS title bar with the initial theme on mount.
+  useEffect(() => {
+    getCurrentWindow().setTheme(theme);
+  }, []);
 
   const { recentFiles, addRecentFile } = useRecentFiles();
 
@@ -69,6 +75,7 @@ function App() {
       const next = prev === "dark" ? "light" : "dark";
       document.documentElement.setAttribute("data-theme", next);
       localStorage.setItem("awapi-theme", next);
+      getCurrentWindow().setTheme(next);
       return next;
     });
   }, []);
