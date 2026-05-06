@@ -1,5 +1,9 @@
 # AwapiPDF
 
+[![CI](https://github.com/awapi/awapi-pdf/actions/workflows/ci.yml/badge.svg)](https://github.com/awapi/awapi-pdf/actions/workflows/ci.yml)
+[![Release](https://github.com/awapi/awapi-pdf/actions/workflows/release.yml/badge.svg)](https://github.com/awapi/awapi-pdf/actions/workflows/release.yml)
+[![Security](https://github.com/awapi/awapi-pdf/actions/workflows/security.yml/badge.svg)](https://github.com/awapi/awapi-pdf/actions/workflows/security.yml)
+
 > Lightweight, smart, yours. — A modern PDF reader and writer powered by AI.
 
 AwapiPDF is an open-source, cross-platform PDF reader and writer built by [Awapi](https://awapi.com). Born out of frustration with bloated, ad-ridden PDF tools like Adobe Acrobat, AwapiPDF is designed to be fast, minimal, and genuinely useful — with AI built in from the ground up.
