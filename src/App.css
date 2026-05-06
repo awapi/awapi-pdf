@@ -248,6 +248,30 @@ body,
   text-align: center;
 }
 
+.zoom-label-btn {
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  cursor: text;
+  padding: 0 6px;
+  min-height: 28px;
+}
+
+.zoom-label-btn:hover {
+  border-color: var(--border);
+}
+
+.zoom-input {
+  width: 56px;
+  height: 28px;
+  text-align: center;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: 13px;
+}
+
 .file-name {
   font-size: 13px;
   color: var(--text-secondary);

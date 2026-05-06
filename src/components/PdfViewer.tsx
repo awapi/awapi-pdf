@@ -68,6 +68,7 @@ const PageRenderer = forwardRef<HTMLDivElement, PageRendererProps>(
     },
     ref
   ) {
+    const PREVIEW_COMPAT_SCALE = 1.35;
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const textLayerRef = useRef<HTMLDivElement>(null);
     const formLayerRef = useRef<HTMLDivElement>(null);
@@ -91,8 +92,9 @@ const PageRenderer = forwardRef<HTMLDivElement, PageRendererProps>(
         const CSS_DPI = 96;
         const PDF_DPI = 72;
         const dpr = window.devicePixelRatio || 1;
-        // Logical viewport (no DPR) — defines the CSS display size.
-        const logicalScale = scale * (CSS_DPI / PDF_DPI);
+        // Keep UI zoom percentages intuitive while calibrating 100% to match
+        // native Preview sizing more closely on macOS.
+        const logicalScale = scale * PREVIEW_COMPAT_SCALE * (CSS_DPI / PDF_DPI);
         const viewport = page.getViewport({ scale: logicalScale });
         const canvas = canvasRef.current;
         const textLayerDiv = textLayerRef.current;

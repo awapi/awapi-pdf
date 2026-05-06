@@ -220,6 +220,7 @@ export function PdfTabContent({
         onZoomIn={zoomIn}
         onZoomOut={zoomOut}
         onResetZoom={resetZoom}
+        onSetScale={setScale}
         onToggleSidebar={toggleSidebar}
         onToggleSearch={toggleSearch}
         onToggleTheme={onToggleTheme}

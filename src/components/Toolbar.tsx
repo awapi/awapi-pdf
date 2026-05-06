@@ -15,6 +15,7 @@ interface ToolbarProps {
   onZoomIn: () => void;
   onZoomOut: () => void;
   onResetZoom: () => void;
+  onSetScale: (scale: number) => void;
   onToggleSidebar: () => void;
   onToggleSearch: () => void;
   onToggleTheme: () => void;
@@ -49,6 +50,7 @@ export function Toolbar({
   onZoomIn,
   onZoomOut,
   onResetZoom,
+  onSetScale,
   onToggleSidebar,
   onToggleSearch,
   onToggleTheme,
@@ -70,9 +72,12 @@ export function Toolbar({
   onOpenRecentFile,
 }: ToolbarProps) {
   const [pageInput, setPageInput] = useState("");
+  const [zoomInput, setZoomInput] = useState("");
+  const [editingZoom, setEditingZoom] = useState(false);
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [showRecentFiles, setShowRecentFiles] = useState(false);
   const recentFilesRef = useRef<HTMLDivElement>(null);
+  const zoomInputRef = useRef<HTMLInputElement>(null);
 
   // Close recent-files dropdown when clicking outside of it.
   useEffect(() => {
@@ -86,6 +91,12 @@ export function Toolbar({
     return () => document.removeEventListener("mousedown", handleClick);
   }, [showRecentFiles]);
 
+  useEffect(() => {
+    if (editingZoom) {
+      zoomInputRef.current?.select();
+    }
+  }, [editingZoom]);
+
   const handlePageSubmit = useCallback(
     (e: React.FormEvent) => {
       e.preventDefault();
@@ -97,6 +108,25 @@ export function Toolbar({
     },
     [pageInput, totalPages, onGoToPage]
   );
+
+  const beginZoomEdit = useCallback(() => {
+    setZoomInput(String(Math.round(scale * 100)));
+    setEditingZoom(true);
+  }, [scale]);
+
+  const commitZoom = useCallback(() => {
+    const parsedPercent = parseFloat(zoomInput.replace("%", "").trim());
+    if (Number.isFinite(parsedPercent) && parsedPercent > 0) {
+      onSetScale(parsedPercent / 100);
+    }
+    setEditingZoom(false);
+    setZoomInput("");
+  }, [zoomInput, onSetScale]);
+
+  const cancelZoomEdit = useCallback(() => {
+    setEditingZoom(false);
+    setZoomInput("");
+  }, []);
 
   return (
     <div className="toolbar">
@@ -206,7 +236,34 @@ export function Toolbar({
             >
               −
             </button>
-            <span className="zoom-label">{Math.round(scale * 100)}%</span>
+            {editingZoom ? (
+              <input
+                ref={zoomInputRef}
+                className="zoom-input"
+                type="text"
+                value={zoomInput}
+                onChange={(e) => setZoomInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    commitZoom();
+                  } else if (e.key === "Escape") {
+                    e.preventDefault();
+                    cancelZoomEdit();
+                  }
+                }}
+                onBlur={commitZoom}
+                aria-label="Zoom percentage"
+              />
+            ) : (
+              <button
+                className="zoom-label zoom-label-btn"
+                onClick={beginZoomEdit}
+                title="Click to edit zoom"
+              >
+                {Math.round(scale * 100)}%
+              </button>
+            )}
             <button
               className="toolbar-btn"
               onClick={onZoomIn}
